@@ -1,5 +1,9 @@
+/Debug/
+/Release/
+librfm12/
+*.deps
 *.o
-*.hex
 *.elf
+*.hex
 *.lst
 *.map

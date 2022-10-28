@@ -11,3 +11,9 @@ Flash Atmegga via USB
 ```c
 $ avrdude -c usbasp -p m644p -U flash:w:{program}.hex
 ```
+
+For UART communication 
+| Atmegga Port | C232HM Cable |
+| ------------ | ------------ |
+| PD0 (RX)     | Orange (TX)  |
+| PD1 (TX)     | Yellow (RX)  |
