@@ -21,6 +21,33 @@ int main(void)
 
    while(1)
    {
-         put_str("write here your code \n\r");
+        i++;
+		if (i == 10000)
+		{
+			put_str("TRANSMITTING: ");
+			put_str((char*) tv);
+			rfm12_tx(sizeof(tv), 0, tv);
+			i = 0;
+		}
+
+		rfm12_tick();
+		rfm12_poll();
+        i++;
+		if (i == 10000)
+		{
+			put_str("TRANSMITT
+
+		if (rfm12_rx_status() == STATUS_COMPLETE)
+		{
+			put_str("new packet: \"");
+			bufptr = rfm12_rx_buffer();
+			for (int j = 0; j < rfm12_rx_len(); j++)
+			{
+				put_ch (bufptr);
+			}
+			put_str("\"\r\n");
+			rfm12_rx_clear();
+			_delay_ms(100);
+		}
    }
 }
