@@ -5,6 +5,7 @@
 
 //#include the library for the RFM12 module and the UART
 #include "rfm12.h"
+#include "tick.h"
 
 uint8_t *bufptr;
 char str[100];	//the string want to send
@@ -18,6 +19,7 @@ int main(void)
 	_delay_ms(100);
 	uint8_t tv[] = "pippo\n\r"; //the message to send
 	sei();           //interrupts on
+	int i = 0;
 
    while(1)
    {
@@ -30,22 +32,18 @@ int main(void)
 			i = 0;
 		}
 
-		rfm12_tick();
+		csma_0_persistent();
 		rfm12_poll();
-        i++;
-		if (i == 10000)
-		{
-			put_str("TRANSMITT
 
 		if (rfm12_rx_status() == STATUS_COMPLETE)
 		{
-			put_str("new packet: \"");
+			put_str("NEW PACKET:  ");
 			bufptr = rfm12_rx_buffer();
 			for (int j = 0; j < rfm12_rx_len(); j++)
 			{
-				put_ch (bufptr);
+				put_ch(bufptr[j]);
 			}
-			put_str("\"\r\n");
+			put_str("\r\n");
 			rfm12_rx_clear();
 			_delay_ms(100);
 		}

@@ -1,6 +1,3 @@
-/Debug/
-/Release/
-librfm12/
 *.deps
 *.o
 *.elf
