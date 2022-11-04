@@ -76,7 +76,7 @@
 #define RFM12_BASEBAND RFM12_BAND_433
 
 //center frequency to use (+- FSK frequency shift)
-#define RFM12_FREQUENCY       433920000UL
+#define RFM12_FREQUENCY       434420000UL
 
 //Transmit FSK frequency shift in kHz
 #define FSK_SHIFT             125000
@@ -157,7 +157,7 @@
 #define RFM12_NOCOLLISIONDETECTION 0
 #define RFM12_TRANSMIT_ONLY 0
 #define RFM12_SPI_SOFTWARE 0
-#define RFM12_USE_POLLING 1
+#define RFM12_USE_POLLING 0
 //#define RFM12_RECEIVE_ASK 0
 #define RFM12_TRANSMIT_ASK 0
 //#define RFM12_USE_WAKEUP_TIMER 0

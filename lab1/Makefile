@@ -1,7 +1,7 @@
 # Modified by Domenico Balsamo
 
 TRG	= rfm12b
-SRC	= main.cpp rfm12.cpp tick.cpp
+SRC	= main.cpp rfm12.cpp
 
 PRGER		= usbasp
 MCU_TARGET	= atmega644p
