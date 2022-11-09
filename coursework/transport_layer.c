@@ -3,7 +3,7 @@
 uint8_t src_port;
 uint8_t dest_port;
 
-static bool parity_check (uint8_t len, uint8_t* buf)
+static void parity_check (uint8_t *checksum, uint8_t len, uint8_t* buf)
 {
     bool parity = 0;
     uint8_t temp;
@@ -16,7 +16,9 @@ static bool parity_check (uint8_t len, uint8_t* buf)
             temp = temp & (temp - 1);
         }
     }
-    return parity;
+    
+    checksum[0] = 0;
+    checksum[1] = parity;
 }
 
 void TL_socket()
@@ -29,25 +31,28 @@ void TL_socket()
 uint8_t TL_transmit (uint8_t* control, uint8_t len, uint8_t* buf)
 {
     uint8_t tx_buf[len+7], tick, state;
-
+    Segment *segment;
+    uint8_t checksum[2];
     // Compute the checksum
-    uint8_t checksum = parity_check(len, buf);
+    parity_check(checksum, len, buf);
 
     // Header of the segment
-    tx_buf[0] = control[0];
-    tx_buf[1] = control[1];
-    tx_buf[2] = src_port;
-    tx_buf[3] = dest_port;
-    tx_buf[4] = len;
+    segment->control[0] = control[0];
+    segment->control[1] = control[1];
+    segment->src_port = src_port;
+    segment->dest_port = dest_port;
+    segment->len = len;
 
     // Data of the segment
+    segment->data = (uint8_t *)malloc(len*sizeof(uint8_t));
     for (int i = 0; i < len; ++i)
     {
-        tx_buf[5+i] = buf[i];
+        segment->data[i] = buf[i];
     }
 
     // Checksum of the segment
-    tx_buf[5+len] = checksum;
+    segment->checksum[0] = checksum[0];
+    segment->checksum[1] = checksum[1];
 
     // Send the data to the Network Layer at constant rate.
 
