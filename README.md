@@ -17,3 +17,10 @@ For UART communication
 | ------------ | ------------ |
 | PD0 (RX)     | Orange (TX)  |
 | PD1 (TX)     | Yellow (RX)  |
+
+
+App circuit setup
+- push-button switch
+- 1kohm resistor
+- 220nF capacitor
+The interrupt pins are pulled high; therefore, to trigger the interrupt cycle, those pins have to be pulled low. Each interrupt pin will be connected to a 1kohm resistor. One side of the switch is connected to the resistor and the other side connected to GND. A capacitor is placed across the switch to debounce the switch.

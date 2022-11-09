@@ -1,6 +1,6 @@
 # Modified by Domenico Balsamo
 
-TRG	= app
+TRG	= rfm12b
 SRC	= main.cpp rfm12.cpp
 
 PRGER		= usbasp
