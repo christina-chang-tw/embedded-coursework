@@ -29,7 +29,7 @@ ISR (INT0_vect)
 ISR (INT1_vect)
 {
     uint8_t ctrl2 = (PIND & _BV(3)) >> 3;
-    put_str("In Interrupt Loop\r\n");
+    put_str("In INT1 Loop\r\n");
 
     // If the PD3 read high, the control button 1 is pressed.
     if (ctrl2)
@@ -37,6 +37,7 @@ ISR (INT1_vect)
         ctrl2_state = ~ctrl2_state;
         put_str("Ctr2 is ");
         put_ch((char) (ctrl2+48));
+        put_str("\r\n");
         // Send data down to TL to change the state of LED
     }
 }
