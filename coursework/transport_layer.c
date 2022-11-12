@@ -1,7 +1,7 @@
 #include "transport_layer.h"
 
-uint8_t src_port;
-uint8_t dest_port;
+static Segment segment_buffer[20];
+static seq_num = 0;
 
 static void parity_check (uint8_t *checksum, uint8_t len, uint8_t* buf)
 {
@@ -21,6 +21,21 @@ static void parity_check (uint8_t *checksum, uint8_t len, uint8_t* buf)
     checksum[1] = parity;
 }
 
+
+
+static void timeout_setup()
+{
+    TCCR2A |= _BV(WGM21);
+    TCCR2B |= _BV(CS22);
+    OCR2A = 25156 // timeout = 3s
+}
+
+
+void TL_setup()
+{
+    timeout_setup()
+}
+
 void TL_socket()
 {
     // Save the source/destination port information
@@ -28,8 +43,9 @@ void TL_socket()
     // dest_port = 
 }
 
-uint8_t TL_transmit (uint8_t* control, uint8_t len, uint8_t* buf)
+uint8_t TL_transmit (uint8_t src_port, uint8_t dest_port, uint8_t len, uint8_t* buf)
 {
+    TIMSK2 |= _BV(OCIE1A); /* Enable output compare interrupt A */
     uint8_t tx_buf[len+7], tick, state;
     Segment *segment;
     uint8_t checksum[2];
@@ -60,17 +76,23 @@ uint8_t TL_transmit (uint8_t* control, uint8_t len, uint8_t* buf)
 
 }
 
+
+void TL_retransmission(int seq_num)
+{
+    // retransmit the segment at that sequence number
+}
+
+
 void TL_receive (uint8_t *len, uint8_t* rx_buf)
 {
-    uint8_t total_len;
-    // Receive the data from the Network Layer
-
-
-    // Check if no corruption in the received segment
-    *len = rx_buf[4];
-
-
-    // Start extracting data
+    Segment *segment;
     
+    segment->control[0] = rx_buf[0]; //SEQ
+    segment->control[1] = rx_buf[1]; //ACK
+
+    if (segment->control[1] != seq_num)
+    {
+        TL_retransmission(seq_num);
+    }    
 
 }

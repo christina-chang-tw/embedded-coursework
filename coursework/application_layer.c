@@ -4,77 +4,113 @@
 #include <util/delay.h>
 #include <stdbool.h>
 
-#define NUM_DDR DDRD
+#define INT_DDR DDRD
 #define INT_PORT PORTD
+#define INT_PIN PIND
+#define INT0_BIT 2
+#define INT1_BIT 3
+
+#define INPUT_DDR DDRA
+#define INPUT_PORT PORTA
+#define INPUT_PIN PINA
+#define INPUT0_BIT 0
+#define INPUT1_BIT 1
+#define INPUT2_BIT 2
+
+#define DEVICE_NUMBER 1
 
 
 static bool ctrl1_state=0, ctrl2_state=0;
 
-ISR (INT0_vect)
+static uint16_t read_adc()
 {
-    uint8_t ctrl1 = (PIND & _BV(2)) >> 2;
-    put_str("In INT0 Loop\r\n");
+    ADCSRA |= _BV(ADSC);
+    return ADC;
+}
 
-    // If the PD2 read high, the control button 1 is pressed.
-    if (ctrl1)
+static void timeout_setup()
+{ 
+    // Enable timer 1
+    TCCR1A = _BV(COM1A0) | _BV(WGM10);
+    TCCR1B = _BV(WGM13) | _BV(CS11);
+}
+
+
+static void set_pwm(uint8_t value)
+{
+    OCR1A = value;
+    TIMSK2 |= _BV(OCIE2A);
+}
+
+
+static void ext_interrupt_setup(int num)
+{
+    switch (num)
     {
-        ctrl1_state = ~ctrl1_state;
-        put_str("Ctr1 is ");
-        put_ch((char) (ctrl1+48));
-        put_str("\r\n");
-        // Send data down to TL to change the state of LED
+    case 0: 
+        EIMSK |= _BV(INT0); // Enable INT0 interrupt mask
+        EICRA |= _BV(ISC01) | _BV(ISC00); // enable the interrupt on falling edge
+        break;
+    case 1:
+        EIMSK |= _BV(INT1); // Enable INT1 interrupt mask
+        EICRA |= _BV(ISC11) | _BV(ISC10); // enable the interrupt on falling edge
+        break;
+    case 2:
+        EIMSK |= _BV(INT2); // Enable INT2 interrupt mask
+        EICRA |= _BV(ISC21) | _BV(ISC20); // enable the interrupt on falling edge
+        break;
     }
 }
+
+
+ISR (INT0_vect)
+{
+    uint8_t src_port, dest_port;
+    uint8_t data[2];
+    uint16_t value;
+    
+    src_port = 0 + DEVICE_NUMBER;
+    dest_port = 3; // need to be changed
+    value = read_adc();
+
+    data[0] = value >> 8;
+    data[1] = value;
+
+    TL_transmit(src_port, dest_port, sizeof(data)/sizeof(uint8_t), data);
+}
+
 
 ISR (INT1_vect)
 {
-    uint8_t ctrl2 = (PIND & _BV(3)) >> 3;
-    put_str("In INT1 Loop\r\n");
-
-    // If the PD3 read high, the control button 1 is pressed.
-    if (ctrl2)
-    {
-        ctrl2_state = ~ctrl2_state;
-        put_str("Ctr2 is ");
-        put_ch((char) (ctrl2+48));
-        put_str("\r\n");
-        // Send data down to TL to change the state of LED
-    }
-}
-
-static void interrupt_setup(int num)
-{
-    if (num == 0)
-    {
-        EIMSK |= _BV(INT0); // Enable INT0 interrupt mask
-        EICRA |= _BV(ISC01) | _BV(ISC00); // enable the interrupt on falling edge
-    }
-    else if (num == 1)
-    {
-        EIMSK |= _BV(INT1); // Enable INT1 interrupt mask
-        EICRA |= _BV(ISC11) | _BV(ISC10); // enable the interrupt on falling edge
-    }
-    else if (num == 2)
-    {
-        EIMSK |= _BV(INT2); // Enable INT2 interrupt mask
-        EICRA |= _BV(ISC21) | _BV(ISC20); // enable the interrupt on falling edge
-    }
-}
-
-
-int main()
-{
+    uint8_t src_port, dest_port;
+    uint8_t data[2];
+    uint16_t value;
     
+    src_port = 1 + DEVICE_NUMBER;
+    dest_port = 3; // need to be changed
+    value = read_adc();
+
+    data[0] = value >> 8;
+    data[1] = value;
+
+    TL_transmit(src_port, dest_port, sizeof(data)/sizeof(uint8_t), data);
+}
+
+
+void AL_device_setup()
+{
     init_uart0();    //init uart
     sei(); // enable interrupt
 
-    _delay_ms(10);
-    put_str("In main\r\n");
-    NUM_DDR = 0x00;
-    INT_PORT |= _BV(2) | _BV(3);
-    interrupt_setup(0);
-    interrupt_setup(1);
+    /* For interrupt */
+    INT_DDR = 0x00;
+    INT_PORT |= _BV(INT0_BIT) | _BV(INT1_BIT); // set up pull-up resistors
+    ext_interrupt_setup(0);
+    ext_interrupt_setup(1);
 
-    while(1);
-    
+    /* For GPIO input */
+    INPUT_DDR &= ~ _BV(INPUT0_BIT);
+    INPUT_PORT |= _BV(INPUT0_BIT);
+
+    TL_setup();
 }
