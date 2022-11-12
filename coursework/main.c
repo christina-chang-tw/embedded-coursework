@@ -1,14 +1,13 @@
-#include "application.h"
+#include "application_layer.h"
+#include "uart.h"
+#include <util/delay.h>
 
 int main()
 {
-    
-    
 
-    _delay_ms(10);
+    AL_device_setup();
     put_str("In main\r\n");
     
-
     while(1);
     
 }

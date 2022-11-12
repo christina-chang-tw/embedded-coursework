@@ -1,5 +1,8 @@
 #include "transport_layer.h"
 
+#include <util/delay.h>
+#include <stdbool.h>
+
 static Segment segment_buffer[20];
 static seq_num = 0;
 
