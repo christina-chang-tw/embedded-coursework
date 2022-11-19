@@ -39,19 +39,13 @@ void TL_setup()
     timeout_setup()
 }
 
-void TL_socket()
-{
-    // Save the source/destination port information
-    // src_port = 
-    // dest_port = 
-}
-
-uint8_t TL_transmit (uint8_t src_port, uint8_t dest_port, uint8_t len, uint8_t* buf)
+uint8_t TL_send (uint8_t dev, uint8_t src_port, uint8_t dest_port, uint8_t len, uint8_t* buf)
 {
     TIMSK2 |= _BV(OCIE1A); /* Enable output compare interrupt A */
     uint8_t tx_buf[len+7], tick, state;
     Segment *segment;
     uint8_t checksum[2];
+
     // Compute the checksum
     parity_check(checksum, len, buf);
 
@@ -72,11 +66,6 @@ uint8_t TL_transmit (uint8_t src_port, uint8_t dest_port, uint8_t len, uint8_t* 
     // Checksum of the segment
     segment->checksum[0] = checksum[0];
     segment->checksum[1] = checksum[1];
-
-    // Send the data to the Network Layer at constant rate.
-
-    return state;
-
 }
 
 
@@ -86,16 +75,42 @@ void TL_retransmission(int seq_num)
 }
 
 
-void TL_receive (uint8_t *len, uint8_t* rx_buf)
+void TL_receive (uint8_t dev, uint8_t *len, uint8_t* rx_buf)
 {
     Segment *segment;
-    
-    segment->control[0] = rx_buf[0]; //SEQ
-    segment->control[1] = rx_buf[1]; //ACK
 
-    if (segment->control[1] != seq_num)
+    if (rx_buf[1])
     {
-        TL_retransmission(seq_num);
-    }    
+        // We know that this is an ACK package, don't send an ACK back!
+    } else 
+    {
+        segment->control[0] = seq_num; 
+        segment->control[1] = rx_buf[0]; // contain the incoming sequence number
+        segment->dest_port = rx_buf[2];
+        segment->src_port = rx_buf[3]; // swap dest and src ports around
+        segment->len = 0;
+        
+    }
 
+}
+
+
+void TL_serialize(uint8_t* tx_buf, Segment *seg)
+{
+    uint8_t data_length = seg->len;
+    tx_buf = (uint8_t *)malloc((data_length+7)*sizeof(uint8_t));
+
+    tx_buf[0] = seg->control[0];
+    tx_buf[1] = seg->control[1];
+    tx_buf[2] = seg->src_port;
+    tx_buf[3] = seg->dest_port;
+    tx_buf[4] = data_length;
+    
+    for (int i = 5; i < data_length + 5; ++i)
+    {
+        tx_buf[i] = seg->data[i-5];
+    }
+
+    tx_buf[5 + data_length] = seg->checksum[0];
+    tx_buf[6 + data_length] = seg->checksum[1];
 }
