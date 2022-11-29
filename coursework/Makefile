@@ -1,7 +1,7 @@
 # Modified by Domenico Balsamo
 
 TRG	= app
-SRC	= main.c application_layer.c uart.c
+SRC	= source/application_layer.c source/uart.c source/transport_layer.c source/hal.c
 
 PRGER		= usbasp
 MCU_TARGET	= atmega644p

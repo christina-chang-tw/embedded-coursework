@@ -1,4 +1,4 @@
-#include "uart.h"
+#include "../include/uart.h"
 
 void init_uart0 (void)
 {
