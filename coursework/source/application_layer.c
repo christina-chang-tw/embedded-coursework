@@ -50,7 +50,6 @@ ISR (INT1_vect)
 #endif
     app_data = read_adc();
     transmit_flag = 1;
-    state = app_layer;
 }
 
 int main()
@@ -64,58 +63,25 @@ int main()
         // Dealing with the transmit side
         if (transmit_flag || retransmit_flag)
         {
-            // Initialise the data transmission, start going down the layers
-            switch (state)
-            {
-            case app_layer:
-                state = trans_layer;
-                break;
-            case trans_layer:
-                trans_buf = TL_send(dest_dev, src_port, dest_port, &app_data);
-                state = net_layer;
-                break;
-            case net_layer:
-                state = link_layer;
-                break;
-            case link_layer:
-                state = phy_layer;
-                break;
-            case phy_layer:
-                transmit_flag = 0;
-                retransmit_flag = 0;
-                receive_flag = 1;
-                break;
-            case idle: break;
-            default: state = idle;
-            }
+            trans_buf = TL_send(dest_dev, src_port, dest_port, &app_data);
+            
+            // end of the transmission
+            transmit_flag = 0;
+            retransmit_flag = 0;
+            
         }
 
         if (receive_flag)
         {
             // Data is received, start going up the layers
-            switch (state)
-            {
-            case app_layer:
-                set_pwm(trans_rxdata.app);
-                receive_flag = 0;
-                state = idle;
-                break;
-            case trans_layer:
-                trans_rxdata = TL_receive(dest_dev, &trans_buf);
-                state = app_layer;
-                break;
-            case net_layer:
-                state = trans_layer;
-                break;
-            case link_layer:
-                state = net_layer;
-                break;
-            case phy_layer:
-                state = link_layer;
-                break;
-            case idle: break;
-            default: state = idle;
-            }
+            trans_rxdata = TL_receive(dest_dev, &trans_buf);
+
+            // Need to decide if send an ACK first or set the app data first. 
+            // Also, still need to do crash recovery. (How to do it?)
+            set_pwm(trans_rxdata.app);
+
+            // end of the receiving mode
+            receive_flag = 0;
         }
 
     }
