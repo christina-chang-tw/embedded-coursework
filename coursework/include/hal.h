@@ -16,3 +16,4 @@ void init_pwm();
 void set_pwm(const al_data_t value);
 void ext_interrupt_setup(int num);
 void timeout_setup();
+void device_setup();
