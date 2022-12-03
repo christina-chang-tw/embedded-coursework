@@ -3,31 +3,19 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define DEBUG 1
-
-enum state_machine {app_layer=0, trans_layer=1, net_layer=2, link_layer=3, phy_layer=4, idle=5};
-
-extern enum state_machine state;
+#define DEBUG 0
 
 extern bool retransmit_flag;
 extern bool receive_flag;
 
+/* App layer wrapper */
 typedef struct
 {
     uint8_t buf[2];
     uint8_t len;
 }al_data_t;
 
-typedef struct
-{
-    uint8_t control[2];
-    uint8_t src_port;
-    uint8_t dest_port;
-    uint8_t len;
-    uint8_t *data;
-    uint8_t checksum[2];
-}Segment;
-
+/* Transport layer wrapper */
 typedef struct
 {
     uint8_t *buf;
@@ -43,4 +31,5 @@ typedef struct
 }tl_receive;
 
 
-
+/* Network layer wrapper */
+/* Data link layer wrapper */

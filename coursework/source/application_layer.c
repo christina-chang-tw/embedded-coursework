@@ -10,17 +10,14 @@
 
 #define DEVICE_NUMBER 0
 
-static bool ctrl1_state=0, ctrl2_state=0;
 static uint8_t src_port, dest_port, dest_dev;
 static al_data_t app_data;
 static bool transmit_flag = 0;
 
 bool receive_flag = 0;
-enum state_machine state = app_layer;
 
 ISR (INT0_vect)
 {
-    ctrl1_state = ~ctrl1_state;
     src_port = 0; // button 0
     dest_port = 2;
 #if (DEVICE_NUMBER == 0)
@@ -32,13 +29,11 @@ ISR (INT0_vect)
 #endif
     app_data = read_adc();
     transmit_flag = 1;
-    state = app_layer;
 }
 
 
 ISR (INT1_vect)
 {
-    ctrl2_state = ~ctrl2_state;
     src_port = 1; // button 1
     dest_port = 2;
 #if (DEVICE_NUMBER == 0)
@@ -60,22 +55,32 @@ int main()
 
     while(1)
     {
-        // Dealing with the transmit side
-        if (transmit_flag || retransmit_flag)
+        // Dealing with transmitting data
+        if (transmit_flag)
         {
             trans_buf = TL_send(dest_dev, src_port, dest_port, &app_data);
             
             // end of the transmission
             transmit_flag = 0;
-            retransmit_flag = 0;
-            
         }
 
+        // Dealing with packet re-transmission
+        if (retransmit_flag)
+        {
+            retransmit_flag = 0;
+        }
+
+
+        // Dealing with the received package
         if (receive_flag)
         {
             // Data is received, start going up the layers
             trans_rxdata = TL_receive(dest_dev, &trans_buf);
-
+            if (!trans_rxdata.segment.buf)
+            {
+                // Nothing in the buffer, something goes wrong
+                // wait for the timeout of the sender.
+            }
             // Need to decide if send an ACK first or set the app data first. 
             // Also, still need to do crash recovery. (How to do it?)
             set_pwm(trans_rxdata.app);

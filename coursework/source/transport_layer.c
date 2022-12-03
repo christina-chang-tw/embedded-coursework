@@ -7,6 +7,9 @@
 
 
 static uint8_t seq_num = 0;
+static uint8_t tick = 0;
+static uint8_t try_num = 0;
+
 bool retransmit_flag = 0;
 
 static uint16_t sum_checksum (const uint8_t len, const uint8_t* buf)
@@ -32,8 +35,13 @@ static void increment_seqnum()
 
 ISR(TIMER2_COMPA_vect)
 {
-    // retransmit_flag = 1;
-    state = net_layer; // just use the previous assembled package
+    // max tick = internal f_c / (prescaler * max of 8-bit) 12*10^6/(1024*256)
+    // Timeout in transport layer = 1s
+    if (max_tick == 46 && try_num < MAXIMUM_TRY_NUM)
+    {
+        retransmit_flag = 1;
+        ++try_num;
+    }
 }
 
 
@@ -88,28 +96,30 @@ tl_receive TL_receive (const uint8_t dev, const tl_segment_tx* rx_buf)
     uint16_t checksum = 0;
     received.app_len = rx_buf->buf[4];
 
-    // /* Check if the received package is an ACK*/
-    // if ((int8_t)rx_buf->buf[1])
-    // {
-    //     // We know that this is an ACK package, check if it is the correct ACK!
-    //     if ((int8_t)rx_buf->buf[0] != seq_num)
-    //     {
-    //         // Incorrect ACK, What?! Time to go through a long process again
-    //         retransmit_flag = 1;
-    //         received.segment.buf = NULL;
-    //         return received;
-    //     } 
-    // }
+    /* Check if the received package is an ACK*/
+    if ((int8_t)rx_buf->buf[1])
+    {
+        // We know that this is an ACK package, check if it is the correct ACK!
+        if ((int8_t)rx_buf->buf[0] != seq_num)
+        {
+            // Incorrect ACK, What?! Should we resend it again?
+            retransmit_flag = 1;
+        }
 
-    // /* Check if the checksum is correct */
-    // checksum = sum_checksum(rx_buf->len-2, rx_buf->buf);
-    // if (rx_buf->buf[rx_buf->len-2] != (uint8_t)(checksum >> 4) || rx_buf->buf[rx_buf->len-1] != (uint8_t)(checksum))
-    // {
-    //     // Oh no, wrong checksum...
-    //     retransmit_flag = 1;
-    //     received.segment.buf = NULL;
-    //     return received;
-    // }
+        // Correct ACK
+        received.segment.buf = NULL;
+        return received;
+    }
+
+    /* Check if the checksum is correct */
+    checksum = sum_checksum(rx_buf->len-2, rx_buf->buf);
+    if (rx_buf->buf[rx_buf->len-2] != (uint8_t)(checksum >> 4) || rx_buf->buf[rx_buf->len-1] != (uint8_t)(checksum))
+    {
+        // Oh no, wrong checksum...
+        retransmit_flag = 1;
+        received.segment.buf = NULL;
+        return received;
+    }
 
     /* Everything is correct - send an ACK back */
     increment_seqnum();

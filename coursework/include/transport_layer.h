@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define MAXIMUM_TRY_NUM 10
 
 tl_segment_tx TL_send (const uint8_t dev, const uint8_t src_port, const uint8_t dest_port, const al_data_t* ap_buf);
 void TL_socket ();
