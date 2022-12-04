@@ -4,7 +4,7 @@ Listen to UART via C232HM Cable
 ```c
 $ screen /dev/{console_port} 115200
 // example - baud rate 9600 with UTF-8 encoding
-$  
+$ sudo screen /dev/ttyUSB0 9600 -U
 ```
 
 Flash Atmegga via USB
