@@ -8,10 +8,7 @@
 
 #define MAXIMUM_TRY_NUM 10
 
-tl_segment_tx TL_send (const uint8_t dev, const uint8_t src_port, const uint8_t dest_port, const al_data_t* ap_buf);
-void TL_socket ();
-tl_receive TL_receive (const uint8_t dev, const tl_segment_tx* rx_buf);
-void TL_serialize(tl_segment_tx* tx_buf, Segment *seg);
-void TL_free_buffer(tl_segment_tx *buf);
-void TL_retransmission();
+void TL_send (const application app, transport *trans);
+Status TL_receive (const uint8_t dev, const tl_segment* rx_seg, transport* trans, al_data_t* app_data);
+void TL_free_buffer(tl_segment *buf);
 // Trasport Layer

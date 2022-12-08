@@ -5,8 +5,8 @@
 
 #define DEBUG 0
 
-extern bool retransmit_flag;
-extern bool receive_flag;
+extern bool tl_retransmit_flag;
+typedef enum {ERROR=-1, SUCCESS=0}Status;
 
 /* App layer wrapper */
 typedef struct
@@ -15,20 +15,40 @@ typedef struct
     uint8_t len;
 }al_data_t;
 
+typedef struct
+{
+    
+    bool transmit_flag;
+    uint8_t src_port;
+    uint8_t dest_port;
+    uint8_t dest_dev;
+    al_data_t tx_data;
+    al_data_t rx_data;
+
+}application;
+
+
 /* Transport layer wrapper */
 typedef struct
 {
     uint8_t *buf;
     uint8_t len;
-}tl_segment_tx;
+}tl_segment;
 
 typedef struct
 {
-    al_data_t app;
-    uint8_t app_len;
-    tl_segment_tx segment;
-    uint8_t seg_len;
-}tl_receive;
+    tl_segment rx_buf;
+    uint8_t src_dev;
+
+    tl_segment tx_buf;
+    uint8_t dest_dev;
+
+    bool ack_flag;
+
+}transport;
+
+
+
 
 
 /* Network layer wrapper */

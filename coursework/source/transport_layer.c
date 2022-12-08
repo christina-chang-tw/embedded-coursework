@@ -10,7 +10,7 @@ static uint8_t seq_num = 0;
 static uint8_t tick = 0;
 static uint8_t try_num = 0;
 
-bool retransmit_flag = 0;
+bool tl_retransmit_flag = 0;
 
 static uint16_t sum_checksum (const uint8_t len, const uint8_t* buf)
 {
@@ -33,48 +33,49 @@ static void increment_seqnum()
     }
 }
 
+
 ISR(TIMER2_COMPA_vect)
 {
     // max tick = internal f_c / (prescaler * max of 8-bit) 12*10^6/(1024*256)
     // Timeout in transport layer = 1s
-    if (max_tick == 46 && try_num < MAXIMUM_TRY_NUM)
+    ++ tick;
+    if (tick == 46 && try_num < MAXIMUM_TRY_NUM)
     {
-        retransmit_flag = 1;
+        tl_retransmit_flag = 1;
+        tick = 0; // reset tick
         ++try_num;
     }
 }
 
 
-tl_segment_tx TL_send (const uint8_t dev, const uint8_t src_port, const uint8_t dest_port, const al_data_t* ap_buf)
+void TL_send (const application app, transport *trans)
 {
     increment_seqnum();
     TIMSK2 |= _BV(OCIE1A); /* Enable output compare interrupt A */
-    tl_segment_tx tx_buf;
     uint16_t checksum;
-    uint8_t len = ap_buf->len;
+    uint8_t len = app.tx_data.len;
 
-    tx_buf.buf = (uint8_t *)malloc((len+7)*sizeof(uint8_t));
+    trans->tx_buf.buf = (uint8_t *)malloc((len+7)*sizeof(uint8_t));
 
     // Header of the segment
-    tx_buf.buf[0] = seq_num;
-    tx_buf.buf[1] = 0x00;
-    tx_buf.buf[2] = src_port;
-    tx_buf.buf[3] = dest_port;
-    tx_buf.buf[4] = len;
+    trans->tx_buf.buf[0] = seq_num;
+    trans->tx_buf.buf[1] = 0x00;
+    trans->tx_buf.buf[2] = app.src_port;
+    trans->tx_buf.buf[3] = app.dest_port;
+    trans->tx_buf.buf[4] = len;
 
     // Data of the segment
     for (int i = 5; i < len+5; ++i)
     {
-        tx_buf.buf[i] =  ap_buf->buf[i-5];
+        trans->tx_buf.buf[i] =  app.tx_data.buf[i-5];
     }
 
     // Checksum of the segment
-    checksum = sum_checksum(len+5, tx_buf.buf);
-    tx_buf.buf[5+len] = (uint8_t)(checksum >> 4);
-    tx_buf.buf[6+len] = (uint8_t)checksum;
-
-    tx_buf.len = len + 7;
-
+    checksum = sum_checksum(len+5, trans->tx_buf.buf);
+    trans->tx_buf.buf[5+len] = (uint8_t)(checksum >> 4);
+    trans->tx_buf.buf[6+len] = (uint8_t)checksum;
+    trans->tx_buf.len = len + 7;
+    trans->dest_dev = app.dest_dev;
 #if(DEBUG)
     for (uint8_t i = 0; i < tx_buf.len ; ++i)
     {
@@ -86,63 +87,66 @@ tl_segment_tx TL_send (const uint8_t dev, const uint8_t src_port, const uint8_t 
         put_str("\r\n");
     }
 #endif
-    return tx_buf;
 }
 
-tl_receive TL_receive (const uint8_t dev, const tl_segment_tx* rx_buf)
+Status TL_receive (const uint8_t dev, const tl_segment* rx_seg, transport* trans, al_data_t* app_data)
 {
-    tl_receive received;
-    tl_segment_tx ack;
     uint16_t checksum = 0;
-    received.app_len = rx_buf->buf[4];
+    uint8_t len = rx_seg->len;
+    app_data->len = rx_seg->buf[4];
 
-    /* Check if the received package is an ACK*/
-    if ((int8_t)rx_buf->buf[1])
+    /* Handle ACK segment*/
+    if ((int8_t)rx_seg->buf[1])
     {
-        // We know that this is an ACK package, check if it is the correct ACK!
-        if ((int8_t)rx_buf->buf[0] != seq_num)
+        /* Check the sequence number is correct*/
+        if ((int8_t)rx_seg->buf[0] != seq_num)
         {
-            // Incorrect ACK, What?! Should we resend it again?
-            retransmit_flag = 1;
+            return ERROR;
         }
 
-        // Correct ACK
-        received.segment.buf = NULL;
-        return received;
+        /* Check if the checksum is correct */
+        checksum = sum_checksum(len-2, rx_seg->buf);
+        if (rx_seg->buf[len-2] != (uint8_t)(checksum >> 4) || rx_seg->buf[len-1] != (uint8_t)(checksum))
+        {
+            // Oh no, wrong checksum...
+            return ERROR;
+        }
+
+        // Correct ACK, disable the interrupt
+        TIMSK2 &= ~_BV(OCIE1A);
+        return SUCCESS;
     }
 
-    /* Check if the checksum is correct */
-    checksum = sum_checksum(rx_buf->len-2, rx_buf->buf);
-    if (rx_buf->buf[rx_buf->len-2] != (uint8_t)(checksum >> 4) || rx_buf->buf[rx_buf->len-1] != (uint8_t)(checksum))
+    /* Handle other segments */
+    checksum = sum_checksum(len-2, rx_seg->buf);
+    if (rx_seg->buf[len-2] != (uint8_t)(checksum >> 4) || rx_seg->buf[len-1] != (uint8_t)(checksum))
     {
-        // Oh no, wrong checksum...
-        retransmit_flag = 1;
-        received.segment.buf = NULL;
-        return received;
+        // Oh no, wrong checksum... wait for the other end to time out
+        return ERROR;
     }
 
-    /* Everything is correct - send an ACK back */
     increment_seqnum();
-    ack.buf = (uint8_t *)malloc((received.seg_len)*sizeof(uint8_t));
-    ack.buf[0] = seq_num;
-    ack.buf[1] = rx_buf->buf[0];
-    ack.buf[2] = rx_buf->buf[2];
-    ack.buf[3] = rx_buf->buf[3];
-    ack.buf[4] = rx_buf->buf[4];
-    ack.len = received.app_len + 7;
-    for (uint8_t i = 0; i < received.app_len; ++i)
+    trans->tx_buf.buf = (uint8_t *)malloc((len)*sizeof(uint8_t));
+    trans->tx_buf.buf[0] = seq_num;
+    trans->tx_buf.buf[1] = rx_seg->buf[0];
+    trans->tx_buf.buf[2] = rx_seg->buf[2];
+    trans->tx_buf.buf[3] = rx_seg->buf[3];
+    trans->tx_buf.buf[4] = rx_seg->buf[4];
+    trans->tx_buf.len = app_data->len + 7;
+    for (uint8_t i = 0; i < app_data->len; ++i)
     {
-        received.app.buf[i] = rx_buf->buf[i+5];
-        ack.buf[i+5] = 0;
+        app_data->buf[i] = rx_seg->buf[i+5];
+        trans->tx_buf.buf[i+5] = 0;
     }
     
     // Checksum of the segment
-    checksum = sum_checksum(rx_buf->len-2, ack.buf);
-    ack.buf[rx_buf->len-2] = (uint8_t)(checksum >> 4);
-    ack.buf[rx_buf->len-1] = (uint8_t)checksum;
-
+    checksum = sum_checksum(len-2, trans->tx_buf.buf);
+    trans->tx_buf.buf[len-2] = (uint8_t)(checksum >> 4);
+    trans->tx_buf.buf[len-1] = (uint8_t)checksum;
+    trans->ack_flag = 1;
+    trans->src_dev = dev;
 #if(DEBUG)
-    for (uint8_t i = 0; i < ack.len ; ++i)
+    for (uint8_t i = 0; i < trans->tx_buf.len ; ++i)
     {
         char buf[5];
         put_str("TL receive segment ");
@@ -152,12 +156,11 @@ tl_receive TL_receive (const uint8_t dev, const tl_segment_tx* rx_buf)
         put_str("\r\n");
     }
 #endif
-
-    received.segment = ack;
-    return received;
+    return SUCCESS;
 }
 
-void TL_free_buffer(tl_segment_tx *buf)
+void TL_free_buffer(tl_segment *buf)
 {
+    free(buf->buf);
     free(buf);
 }
