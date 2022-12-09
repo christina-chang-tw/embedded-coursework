@@ -3,9 +3,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define DEBUG 0
+#define DEBUG_MSG 1
 
-extern bool tl_retransmit_flag;
+extern bool tl_retransmit_flag, tl_busy_flag; // transport layer flags
+extern bool receive_flag;
 typedef enum {ERROR=-1, SUCCESS=0}Status;
 
 /* App layer wrapper */
@@ -37,14 +38,9 @@ typedef struct
 
 typedef struct
 {
-    tl_segment rx_buf;
-    uint8_t src_dev;
-
-    tl_segment tx_buf;
-    uint8_t dest_dev;
-
+    tl_segment buf;
+    uint8_t dev;
     bool ack_flag;
-
 }transport;
 
 

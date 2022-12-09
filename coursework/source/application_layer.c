@@ -11,8 +11,10 @@
 #define DEVICE_NUMBER 0
 
 static application app;
-static transport trans;
-bool receive_flag = 0;
+static transport trans[20];
+static uint8_t current_index = 0; // current seg that is being used
+static uint8_t last_index = 0; // the last seg that is being put onto
+
 
 ISR (INT0_vect)
 {
@@ -49,16 +51,32 @@ ISR (INT1_vect)
 int main()
 {
     device_setup();
+    transport rx_trans;
     tl_segment rx;
     Status status;
-    uint8_t dest_dev;
+    uint8_t dest_dev = 0;
+
+    rx.buf[0] = 1;
+    rx.buf[1] = 1;
+    rx.buf[2] = 2;
+    rx.buf[3] = 0;
+    rx.buf[4] = 2;
+    rx.buf[5] = 0;
+    rx.buf[6] = 0;
+    rx.buf[7] = 0;
+    rx.buf[8] = 6;
+    rx.len = 9;
     
     while(1)
     {
         // Dealing with transmitting data
         if (app.transmit_flag)
         {
-            TL_send(app, &trans);
+            TL_send(app, &trans[last_index]);
+            ++last_index;
+
+            // increase the current index
+            ++current_index;
             
             // end of the transmission
             app.transmit_flag = 0;
@@ -66,8 +84,9 @@ int main()
 
         // Dealing with packet re-transmission and acknowledgement
         // Only start from transport layer downward with already assembled segment
-        if (tl_retransmit_flag || trans.ack_flag)
+        if (tl_retransmit_flag || trans[current_index].ack_flag)
         {
+            put_str("retransmitting data ...\r\n");
             tl_retransmit_flag = 0;
         }
 
@@ -76,15 +95,13 @@ int main()
         if (receive_flag)
         {
             // Data is received, start going up the layers
-            status = TL_receive(dest_dev, &rx, &trans, &app.rx_data);
+            status = TL_receive(dest_dev, &rx, &rx_trans, &app.rx_data);
+
+            // Currently setting the app first
             if (status == SUCCESS)
             {
                 set_pwm(app.rx_data);
             }
-
-            // Need to decide if send an ACK first or set the app data first. 
-            // Also, still need to do crash recovery. (How to do it?)
-            
 
             // end of the receiving mode
             receive_flag = 0;
