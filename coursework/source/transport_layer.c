@@ -11,8 +11,40 @@ static uint8_t tick = 0;
 static uint8_t try_num = 0;
 
 bool tl_retransmit_flag = 0;
-bool receive_flag = 0;
-bool tl_busy_flag = 0;
+
+
+typedef struct
+{
+    size_t length;
+    size_t capacity;
+    transport *buff;
+} transport_vector;
+
+transport_vector create_transport_vector()
+{
+    return {0, 0, NULL};
+}
+
+void push_back(transport_vector *vec, transport obj)
+{
+    if (len == capacity)
+    {
+        vec->capacity <<= 1;
+        vec->buff = realloc(vec->buff, sizeof(transport)*vec->capacity);
+    }
+    vec->buff[(vec->length)++] = obj;
+}
+
+transport pop_back(transport_vector *vec)
+{
+    return vec->buff[--(vec->length)];
+}
+
+void delete_transport_vector(transport_vector *vec)
+{
+    free(vec->buff);
+}
+
 
 static uint16_t sum_checksum (const uint8_t len, const uint8_t* buf)
 {
@@ -45,16 +77,18 @@ ISR(TIMER2_COMPA_vect)
     {
         tl_retransmit_flag = 1;
         tick = 0; // reset tick
-        ++try_num;
-    }
+        ++ try_num;
+    }   
 }
 
+void TL_reset_attempts()
+{
+    try_num = 0;
+}
 
 void TL_send (const application app, transport *trans)
 {
-    tl_busy_flag = 1;
     increment_seqnum();
-    TIMSK2 |= _BV(OCIE1A); /* Enable output compare interrupt A */
     uint16_t checksum;
     uint8_t len = app.tx_data.len;
 
@@ -79,8 +113,6 @@ void TL_send (const application app, transport *trans)
     trans->buf.buf[6+len] = (uint8_t)checksum;
     trans->buf.len = len + 7;
     trans->dev = app.dest_dev;
-
-    receive_flag = 1;
 
 #if(DEBUG_MSG)
     for (uint8_t i = 0; i < trans->buf.len ; ++i)
@@ -167,7 +199,6 @@ Status TL_receive (const uint8_t dev, const tl_segment* rx_seg, transport* trans
     }
     put_str("\r\n");
 #endif
-    tl_busy_flag = 0;
     return SUCCESS;
 }
 

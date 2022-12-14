@@ -15,6 +15,9 @@ static transport trans[20];
 static uint8_t current_index = 0; // current seg that is being used
 static uint8_t last_index = 0; // the last seg that is being put onto
 
+static bool net_busy = 1;
+static bool receive_flag = 0;
+
 
 ISR (INT0_vect)
 {
@@ -73,13 +76,27 @@ int main()
         if (app.transmit_flag)
         {
             TL_send(app, &trans[last_index]);
-            ++last_index;
-
-            // increase the current index
-            ++current_index;
             
+            if (!net_busy)
+            {
+                put_str("Attempt to send things\r\n\r\n");
+                TL_reset_attempts();
+                TIMSK2 |= _BV(OCIE1A); /* Enable output compare interrupt A */
+                ++current_index;
+            }
+            ++last_index;
+            
+            char buf[5];
+            put_str("Current index : ");
+            put_str(itoa(current_index, buf, 10));
+            put_str(",   Last index :  ");
+            put_str(itoa(last_index, buf, 10));
+            put_str(",   Net busy flag :  ");
+            put_str(itoa(net_busy, buf, 10));
+            put_str("\r\n");
             // end of the transmission
             app.transmit_flag = 0;
+            net_busy = !net_busy;
         }
 
         // Dealing with packet re-transmission and acknowledgement

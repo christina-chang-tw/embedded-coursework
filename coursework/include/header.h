@@ -5,8 +5,7 @@
 
 #define DEBUG_MSG 1
 
-extern bool tl_retransmit_flag, tl_busy_flag; // transport layer flags
-extern bool receive_flag;
+extern bool tl_retransmit_flag; // transport layer flags
 typedef enum {ERROR=-1, SUCCESS=0}Status;
 
 /* App layer wrapper */
